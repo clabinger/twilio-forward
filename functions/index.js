@@ -5,9 +5,15 @@ const functions = require('firebase-functions');
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
 const admin = require('firebase-admin');
 
+const time_threshold = 1; // Do not reply more than once within 5 minutes
+
 admin.initializeApp(functions.config().firebase);
 
-const formatPhone = function(phone, twilio_format){
+const formatPhone = function(phone, format_code){
+
+	/*
+		format_code: 0 = human, 1 = numbers only, 2 = Twilio
+	*/
 
 	let number = phone.replace(/\D+/g, '');
 
@@ -22,8 +28,10 @@ const formatPhone = function(phone, twilio_format){
 		return phone;
 	}
 
-	if(twilio_format){
+	if(format_code==2){
 		return '+1'+number;
+	}else if(format_code==1){
+		return number;
 	}else{
 		return '('+number.substr(0, 3)+') '+number.substr(3, 3)+'-'+number.substr(6);
 	}	
@@ -32,11 +40,13 @@ const formatPhone = function(phone, twilio_format){
 
 const sendMessage = function(from, to, body, mediaUrls, callback){
 
+	console.log('Sending message to '+to+': "'+body+'". Sending...');
+
 	const client = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
 
 	let parameters = { 
-	    to: formatPhone(to, true),
-	    from: formatPhone(from, true),
+	    to: formatPhone(to, 2),
+	    from: formatPhone(from, 2),
 	    body: body
 	}
 
@@ -47,8 +57,10 @@ const sendMessage = function(from, to, body, mediaUrls, callback){
 	client.messages.create(parameters, function(err, message){
 	    
 	    if(err!==null){
-	    	console.error(err);
+	    	console.error('Message to '+to+' not sent successfully: '+err);
 	    	console.info(message.sid);
+	    }else{
+	    	console.log('Message to '+to+' sent successfully.');
 	    }
 
 	    if(typeof callback === 'function'){
@@ -62,7 +74,12 @@ const receiveMessage = function(options){
 
 	return functions.https.onRequest((req, res) => {
 
-	    const forward_message = 'Verizon Fwd from '+formatPhone(req.body['From'])+': '+req.body['Body'];
+		const third_party_number = req.body['From'];
+		const third_party_message = req.body['Body'];
+
+		console.log('Receiving message from '+third_party_number+': "'+third_party_message+'".');
+
+	    const forward_message = 'Verizon Fwd from '+formatPhone(third_party_number)+': '+third_party_message;
 
 	    // Forward message to new number
 
@@ -82,21 +99,55 @@ const receiveMessage = function(options){
 			mediaUrls,
 			function(successful){ // Reply to third party
 
-		        incoming_message_test = req.body['Body'].trim().toLowerCase();
-		        
-		        let reply_message = '';
+				console.log('Replying to 3rd party...');
 
-		        if(incoming_message_test==='number'){
-		            reply_message = formatPhone(options.new_number);
-		        }else{
-		        	reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has'+(successful ? '':' NOT')+' been forwarded. Thank you. --'+options.name;
-		        }
+				const thisTime = new Date().getTime();
 
-		        sendMessage(
-		        	options.old_number,
-		        	req.body['From'], 
-		        	reply_message
-			    );
+				// Only reply if they have not gotten a reply in the last x minutes
+
+				var numberRef = admin.database().ref('/replies/'+formatPhone(third_party_number, 1)+'/time');
+				var messageRef = admin.database().ref('/incoming/'+formatPhone(third_party_number, 1));
+
+				numberRef.once('value').then(function(snapshot){
+					const lastTime = snapshot.val();
+
+			        const incoming_message_test = third_party_message.trim().toLowerCase();
+
+			        const requested_number = (incoming_message_test==='number');
+
+			        const time_since = thisTime - lastTime;
+
+				    messageRef.push({message: third_party_message});
+
+					if(requested_number || !lastTime || time_since > (time_threshold * 60 * 1000)){ // x minutes, 60 seconds per minute, 1000 millseconds per second
+				        
+				        let reply_message = '';
+
+				        if(requested_number){
+				            reply_message = formatPhone(options.new_number);
+				        }else{
+				        	reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has'+(successful ? '':' NOT')+' been forwarded. Thank you. --'+options.name;
+				        }
+
+				        sendMessage(
+				        	options.old_number,
+				        	third_party_number,
+				        	reply_message
+					    );
+
+					    // Save in db that we sent message to this person
+					    numberRef.set(thisTime, function(error){
+					    	if(error){
+					    		console.error('Sent message was NOT saved to the database: '+error);
+					    	}else{
+					    		console.log('Sent message saved to database.');
+					    	}
+					    });
+					}else{
+						console.log('Already replied to '+third_party_number+' within '+time_threshold+' minutes, not replying.');
+					}
+
+				});
 			}
 		);
 
