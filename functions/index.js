@@ -105,7 +105,7 @@ const receiveMessage = function (options) {
 			let reply_message = '';
 
 			if (requested_number) {
-					reply_message = formatPhone(options.new_number);
+				reply_message = formatPhone(options.new_number);
 			} else {
 				reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (result ? '':' NOT') + ' been forwarded. Thank you. --' + options.name;
 			}
