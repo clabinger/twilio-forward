@@ -9,33 +9,26 @@ const firestore = admin.firestore();
 
 const time_threshold = 1; // Do not reply more than once within 5 minutes
 
-const formatPhone = function(phone, format_code){
+const formatPhone = function(rawPhoneNumber, formatCode) {
+	// formatCode: 1 = numbers only, 2 = Twilio, default = human
 
-	/*
-		format_code: 0 = human, 1 = numbers only, 2 = Twilio
-	*/
-
-	let number = phone.replace(/\D+/g, '');
-
-	// Return $phone (unchanged) if not a valid U.S. phone number
-	if(number.length<10 || number.length>11){ // If not 10 or 11 digits, can't be U.S. phone number
-		return phone;
-	}else if(number.charAt(0)==='0' || number.charAt(0)==='1'){
-		number = number.substr(1);
+	let phoneNumber = rawPhoneNumber.replace(/\D+/g, '');
+	
+	if (phoneNumber.length === 11 && ['0', '1'].includes(phoneNumber[0])) {
+		// U.S. phone number with leading 1 or 0. Remove leading digit.
+		phoneNumber = phoneNumber.substr(1);
+	} else if (phoneNumber.length !== 10) {
+		// Any other U.S. phone number should have 10 digits. Not a valid U.S. phone number
+		return rawPhoneNumber
 	}
 
-	if(number.length!==10){ // Should be 10 digits at this point, otherwise it's not a valid U.S. phone number
-		return phone;
-	}
-
-	if(format_code==2){
-		return '+1'+number;
-	}else if(format_code==1){
-		return number;
-	}else{
-		return '('+number.substr(0, 3)+') '+number.substr(3, 3)+'-'+number.substr(6);
+	if (formatCode === 2) { // Format for Twilio
+		return '+1' + phoneNumber;
+	} else if (formatCode === 1) { // Format with numbers only
+		return phoneNumber;
+	} else { // Format for human
+		return '(' + phoneNumber.substr(0, 3) + ') ' + phoneNumber.substr(3, 3) + '-' + phoneNumber.substr(6);
 	}	
-
 }
 
 const sendMessage = function(from, to, body, mediaUrls, callback){
