@@ -154,14 +154,3 @@ for (let i in functions.config().instances) {
 	let options = functions.config().instances[i];
 	exports['receiveMessage_' + i] = receiveMessage(options);
 }
-
-
-exports.addMessage = functions.https.onRequest((req, res) => {
-
-  const message = req.query['Body'];
-  // Push the new message into the Realtime Database using the Firebase Admin SDK.
-  admin.database().ref('/incoming').push({ message: message }).then(snapshot => {
-    // Redirect with 303 SEE OTHER to the URL of the pushed object in the Firebase console.
-    res.redirect(303, snapshot.ref);
-  });
-});
