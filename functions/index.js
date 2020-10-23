@@ -7,7 +7,7 @@ admin.initializeApp();
 
 const database = admin.database();
 
-const time_threshold = 1; // Do not reply more than once within 5 minutes
+const time_threshold = 10; // Do not reply more than once within 10 minutes
 
 const formatPhone = function (rawPhoneNumber, formatCode) {
 	// formatCode: 1 = numbers only, 2 = Twilio, default = human
