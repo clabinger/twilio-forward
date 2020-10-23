@@ -1,13 +1,13 @@
-
 // The Cloud Functions for Firebase SDK to create Cloud Functions and setup triggers.
 const functions = require('firebase-functions');
 
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
 const admin = require('firebase-admin');
+admin.initializeApp();
+
+const firestore = admin.firestore();
 
 const time_threshold = 1; // Do not reply more than once within 5 minutes
-
-admin.initializeApp(functions.config().firebase);
 
 const formatPhone = function(phone, format_code){
 
