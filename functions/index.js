@@ -5,7 +5,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
-const firestore = admin.firestore();
+const database = admin.database();
 
 const time_threshold = 1; // Do not reply more than once within 5 minutes
 
@@ -89,8 +89,8 @@ const receiveMessage = function (options) {
 
 		// Only reply if they have not gotten a reply in the last x minutes
 
-		var numberRef = admin.database().ref('/replies/' + formatPhone(third_party_number, 1) + '/time');
-		var messageRef = admin.database().ref('/incoming/' + formatPhone(third_party_number, 1));
+		var numberRef = database.ref('/replies/' + formatPhone(third_party_number, 1) + '/time');
+		var messageRef = database.ref('/incoming/' + formatPhone(third_party_number, 1));
 
 		await numberRef.once('value')
 	
