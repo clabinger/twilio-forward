@@ -31,52 +31,43 @@ const formatPhone = function (rawPhoneNumber, formatCode) {
 	}	
 }
 
-const sendMessage = function (from, to, body, mediaUrls, callback) {
-
+const sendMessage = async function (from, to, body, mediaUrls) {
 	console.log('Sending message to ' + to + ': "' + body + '". Sending...');
 
 	const client = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
 
 	let parameters = { 
-	    to: formatPhone(to, 2),
-	    from: formatPhone(from, 2),
-	    body: body
+		to: formatPhone(to, 2),
+		from: formatPhone(from, 2),
+		body: body
 	}
 
 	if (mediaUrls) {
 		parameters.mediaUrl = mediaUrls;
 	}
 
-	client.messages.create(parameters, function (err, message) {
-	    
-	    if (err !== null) {
-	    	console.error('Message to ' + to + ' not sent successfully: ' + err);
-	    	console.info(message.sid);
-	    } else {
-	    	console.log('Message to ' + to + ' sent successfully.');
-	    }
-
-	    if (typeof callback === 'function') {
-	    	callback((err === null));
-	    }
-	});
-
+	try {
+		await client.messages.create(parameters);
+		console.log('Message to ' + to + ' sent successfully.');
+	} catch (error) {
+		console.error('Message to ' + to + ' not sent successfully: ' + error);
+		console.info(message.sid);
+	}
 }
 
 const receiveMessage = function (options) {
 
-	return functions.https.onRequest((req, res) => {
+	return functions.https.onRequest(async (req, res) => {
 
 		const third_party_number = req.body['From'];
 		const third_party_message = req.body['Body'];
 
 		console.log('Receiving message from ' + third_party_number + ': "' + third_party_message + '".');
+		const forward_message = 'Verizon Fwd from ' + formatPhone(third_party_number) + ': ' + third_party_message;
 
-	    const forward_message = 'Verizon Fwd from ' + formatPhone(third_party_number) + ': ' + third_party_message;
+		// Forward message to new number
 
-	    // Forward message to new number
-
-	    let mediaUrls = null;
+		let mediaUrls = null;
 
 		if (req.body['NumMedia'] > 0) {
 			mediaUrls = [];
@@ -85,64 +76,56 @@ const receiveMessage = function (options) {
 			}
 		}
 
-		const result = sendMessage(
+		const result = await sendMessage(
 			options.old_number,
 			options.new_number, 
 			forward_message, 
-			mediaUrls,
-			function (successful) { // Reply to third party
-
-				console.log('Replying to 3rd party...');
-
-				const thisTime = new Date().getTime();
-
-				// Only reply if they have not gotten a reply in the last x minutes
-
-				var numberRef = admin.database().ref('/replies/' + formatPhone(third_party_number, 1) + '/time');
-				var messageRef = admin.database().ref('/incoming/' + formatPhone(third_party_number, 1));
-
-				numberRef.once('value').then(function (snapshot) {
-					const lastTime = snapshot.val();
-
-			        const incoming_message_test = third_party_message.trim().toLowerCase();
-
-			        const requested_number = (incoming_message_test === 'number');
-
-			        const time_since = thisTime - lastTime;
-
-				    messageRef.push({ message: third_party_message });
-
-					if (requested_number || !lastTime || time_since > (time_threshold * 60 * 1000)) { // x minutes, 60 seconds per minute, 1000 millseconds per second
-				        
-				        let reply_message = '';
-
-				        if (requested_number) {
-				            reply_message = formatPhone(options.new_number);
-				        } else {
-				        	reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (successful ? '':' NOT') + ' been forwarded. Thank you. --' + options.name;
-				        }
-
-				        sendMessage(
-				        	options.old_number,
-				        	third_party_number,
-				        	reply_message
-					    );
-
-					    // Save in db that we sent message to this person
-					    numberRef.set(thisTime, function (error) {
-					    	if (error) {
-					    		console.error('Sent message was NOT saved to the database: ' + error);
-					    	} else {
-					    		console.log('Sent message saved to database.');
-					    	}
-					    });
-					} else {
-						console.log('Already replied to ' + third_party_number + ' within ' + time_threshold + ' minutes, not replying.');
-					}
-
-				});
-			}
+			mediaUrls
 		);
+
+		console.log('Replying to 3rd party...');
+
+		const thisTime = new Date().getTime();
+
+		// Only reply if they have not gotten a reply in the last x minutes
+
+		var numberRef = admin.database().ref('/replies/' + formatPhone(third_party_number, 1) + '/time');
+		var messageRef = admin.database().ref('/incoming/' + formatPhone(third_party_number, 1));
+
+		await numberRef.once('value')
+	
+		const lastTime = snapshot.val();
+		const incoming_message_test = third_party_message.trim().toLowerCase();
+		const requested_number = (incoming_message_test === 'number');
+		const time_since = thisTime - lastTime;
+
+		messageRef.push({ message: third_party_message });
+
+		if (requested_number || !lastTime || time_since > (time_threshold * 60 * 1000)) { // x minutes, 60 seconds per minute, 1000 millseconds per second
+			let reply_message = '';
+
+			if (requested_number) {
+					reply_message = formatPhone(options.new_number);
+			} else {
+				reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (successful ? '':' NOT') + ' been forwarded. Thank you. --' + options.name;
+			}
+
+			sendMessage(
+				options.old_number,
+				third_party_number,
+				reply_message
+			);
+
+			// Save in db that we sent message to this person
+			try {
+				numberRef.set(thisTime)
+				console.log('Sent message saved to database.');
+			} catch (error) {
+				console.error('Sent message was NOT saved to the database: ' + error);
+			}
+		} else {
+			console.log('Already replied to ' + third_party_number + ' within ' + time_threshold + ' minutes, not replying.');
+		}
 
 		res.set('Content-Type', 'text/xml').status(200).send('<Response></Response>');
 
