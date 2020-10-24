@@ -61,11 +61,21 @@ const sendMessage = async function ({ from, to, body, mediaUrls }) {
 }
 
 const loadSource = function (source) {
-	return {
+	const result = {
 		number: source.From,
 		message: source.Body,
-		targetNumber: formatPhone(source.To, 1)
+		targetNumber: formatPhone(source.To, 1),
+		mediaUrls: null
 	}
+
+	if (source.NumMedia > 0) {
+		result.mediaUrls = [];
+		for (let i = 0; i < source.NumMedia; i++) {
+			result.mediaUrls.push(source['MediaUrl' + i]);
+		}
+	}
+
+	return result
 }
 
 const loadTarget = function (targetNumber) {
@@ -82,20 +92,11 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 
 	// Forward message to new number
 
-	let mediaUrls = null;
-
-	if (req.body['NumMedia'] > 0) {
-		mediaUrls = [];
-		for (let i = 0; i < req.body['NumMedia']; i++) {
-			mediaUrls.push(req.body['MediaUrl' + i]);
-		}
-	}
-
 	const result = await sendMessage({
 		from: target.oldNumber,
 		to: target.newNumber, 
 		body: forward_message, 
-		mediaUrls
+		mediaUrls: source.mediaUrls
 	});
 
 	console.log('Replying to sender...');
