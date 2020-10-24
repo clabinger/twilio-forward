@@ -83,21 +83,23 @@ const loadTarget = function (targetNumber) {
 	return targets.find(target => target.oldNumber === targetNumber)
 }
 
+const forwardToTarget = async function (source, target) {
+	return await sendMessage({
+		from: target.oldNumber,
+		to: target.newNumber, 
+		body: 'Fwd from ' + formatPhone(source.number) + ': ' + source.message,
+		mediaUrls: source.mediaUrls
+	});
+}
+
 exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	const source = loadSource(req.body);
 	const target = loadTarget(source.targetNumber);
 
 	console.log('Receiving message from ' + source.number + ': "' + source.message + '".');
-	const forward_message = 'Fwd from ' + formatPhone(source.number) + ': ' + source.message;
 
 	// Forward message to new number
-
-	const result = await sendMessage({
-		from: target.oldNumber,
-		to: target.newNumber, 
-		body: forward_message, 
-		mediaUrls: source.mediaUrls
-	});
+	const forwardResult = await forwardToTarget(source, target);
 
 	console.log('Replying to sender...');
 
@@ -129,7 +131,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 		if (requested_number) {
 			reply_message = formatPhone(target.newNumber);
 		} else {
-			reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (result ? '':' NOT') + ' been forwarded. Thank you. --' + target.name;
+			reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (forwardResult ? '':' NOT') + ' been forwarded. Thank you. --' + target.name;
 		}
 
 		sendMessage({
