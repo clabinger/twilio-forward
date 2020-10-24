@@ -98,7 +98,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 		mediaUrls
 	});
 
-	console.log('Replying to 3rd party...');
+	console.log('Replying to sender...');
 
 	const thisTime = new Date().getTime();
 
@@ -137,12 +137,12 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 			body: reply_message
 		});
 
-		// Save in db that we sent message to this person
+		// Save reply time to the database for this sender
 		try {
 			numberRef.set(thisTime)
-			console.log('Sent message saved to database.');
+			console.log('Last reply time for this sender saved to database.');
 		} catch (error) {
-			console.error('Sent message was NOT saved to the database: ' + error);
+			console.error('Last reply time for this sender NOT saved to database: ' + error);
 		}
 	} else {
 		console.log('Already replied to ' + source.number + ' within ' + time_threshold + ' minutes, not replying.');
