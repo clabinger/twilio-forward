@@ -2,3 +2,4 @@
 node_modules/
 
 functions/targets.json
+firebase-debug.log
