@@ -107,10 +107,10 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 
 	// Only reply if they have not gotten a reply in the last x minutes
 
-	var numberRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
-	var messageRef = database.ref('/incoming/' + formatPhone(source.number, 1));
+	const lastReplyTimeRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
+	const incomingMessageRef = database.ref('/incoming/' + formatPhone(source.number, 1));
 
-	const snapshot = await numberRef.once('value')
+	const snapshot = await lastReplyTimeRef.once('value')
 
 	const lastTime = snapshot.val();
 	const incoming_message_test = source.message.trim().toLowerCase();
@@ -118,7 +118,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	const time_since = thisTime - lastTime;
 
 	try {
-		messageRef.push({ message: source.message });
+		incomingMessageRef.push({ message: source.message });
 		console.log('Incoming message saved to database.');
 	} catch (error) {
 		console.error('Incoming message NOT saved to database: ' + error);
@@ -142,7 +142,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 
 		// Save reply time to the database for this sender
 		try {
-			numberRef.set(thisTime)
+			lastReplyTimeRef.set(thisTime)
 			console.log('Last reply time for this sender saved to database.');
 		} catch (error) {
 			console.error('Last reply time for this sender NOT saved to database: ' + error);
