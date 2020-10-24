@@ -31,7 +31,7 @@ const formatPhone = function (rawPhoneNumber, formatCode) {
 	}	
 }
 
-const sendMessage = async function (from, to, body, mediaUrls) {
+const sendMessage = async function ({ from, to, body, mediaUrls }) {
 	console.log('Sending message to ' + to + ': "' + body + '". Sending...');
 
 	const client = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
@@ -79,12 +79,12 @@ const receiveMessage = function (options) {
 			}
 		}
 
-		const result = await sendMessage(
-			options.old_number,
-			options.new_number, 
-			forward_message, 
+		const result = await sendMessage({
+			from: options.old_number,
+			to: options.new_number, 
+			body: forward_message, 
 			mediaUrls
-		);
+		});
 
 		console.log('Replying to 3rd party...');
 
@@ -113,11 +113,11 @@ const receiveMessage = function (options) {
 				reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (result ? '':' NOT') + ' been forwarded. Thank you. --' + options.name;
 			}
 
-			sendMessage(
-				options.old_number,
-				third_party_number,
-				reply_message
-			);
+			sendMessage({
+				from: options.old_number,
+				to: third_party_number,
+				body: reply_message
+			});
 
 			// Save in db that we sent message to this person
 			try {
