@@ -114,7 +114,13 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	const requested_number = (incoming_message_test === 'number');
 	const time_since = thisTime - lastTime;
 
-	messageRef.push({ message: source.message });
+	try {
+		messageRef.push({ message: source.message });
+		console.log('Incoming message saved to database.');
+	} catch (error) {
+		console.error('Incoming message NOT saved to database: ' + error);
+	}
+	
 
 	if (requested_number || !lastTime || time_since > (time_threshold * 60 * 1000)) { // x minutes, 60 seconds per minute, 1000 millseconds per second
 		let reply_message = '';
