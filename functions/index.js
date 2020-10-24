@@ -65,84 +65,78 @@ const loadTarget = function (targetNumber) {
 	return targets.find(target => target.oldNumber === targetNumber)
 }
 
-const receiveMessage = function () {
+exports.receiveMessage = functions.https.onRequest(async (req, res) => {
+	const third_party_number = req.body['From'];
+	const third_party_message = req.body['Body'];
+	const target_number = formatPhone(req.body['To'], 1);
 
-	return functions.https.onRequest(async (req, res) => {
+	const target = loadTarget(target_number);
 
-		const third_party_number = req.body['From'];
-		const third_party_message = req.body['Body'];
-		const target_number = formatPhone(req.body['To'], 1);
+	console.log('Receiving message from ' + third_party_number + ': "' + third_party_message + '".');
+	const forward_message = 'Verizon Fwd from ' + formatPhone(third_party_number) + ': ' + third_party_message;
 
-		const target = loadTarget(target_number);
+	// Forward message to new number
 
-		console.log('Receiving message from ' + third_party_number + ': "' + third_party_message + '".');
-		const forward_message = 'Verizon Fwd from ' + formatPhone(third_party_number) + ': ' + third_party_message;
+	let mediaUrls = null;
 
-		// Forward message to new number
+	if (req.body['NumMedia'] > 0) {
+		mediaUrls = [];
+		for (let i = 0; i < req.body['NumMedia']; i++) {
+			mediaUrls.push(req.body['MediaUrl' + i]);
+		}
+	}
 
-		let mediaUrls = null;
+	const result = await sendMessage({
+		from: target.oldNumber,
+		to: target.newNumber, 
+		body: forward_message, 
+		mediaUrls
+	});
 
-		if (req.body['NumMedia'] > 0) {
-			mediaUrls = [];
-			for (let i = 0; i < req.body['NumMedia']; i++) {
-				mediaUrls.push(req.body['MediaUrl' + i]);
-			}
+	console.log('Replying to 3rd party...');
+
+	const thisTime = new Date().getTime();
+
+	// Only reply if they have not gotten a reply in the last x minutes
+
+	var numberRef = database.ref('/replies/' + formatPhone(third_party_number, 1) + '/time');
+	var messageRef = database.ref('/incoming/' + formatPhone(third_party_number, 1));
+
+	const snapshot = await numberRef.once('value')
+
+	const lastTime = snapshot.val();
+	const incoming_message_test = third_party_message.trim().toLowerCase();
+	const requested_number = (incoming_message_test === 'number');
+	const time_since = thisTime - lastTime;
+
+	messageRef.push({ message: third_party_message });
+
+	if (requested_number || !lastTime || time_since > (time_threshold * 60 * 1000)) { // x minutes, 60 seconds per minute, 1000 millseconds per second
+		let reply_message = '';
+
+		if (requested_number) {
+			reply_message = formatPhone(target.newNumber);
+		} else {
+			reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (result ? '':' NOT') + ' been forwarded. Thank you. --' + target.name;
 		}
 
-		const result = await sendMessage({
+		sendMessage({
 			from: target.oldNumber,
-			to: target.newNumber, 
-			body: forward_message, 
-			mediaUrls
+			to: third_party_number,
+			body: reply_message
 		});
 
-		console.log('Replying to 3rd party...');
-
-		const thisTime = new Date().getTime();
-
-		// Only reply if they have not gotten a reply in the last x minutes
-
-		var numberRef = database.ref('/replies/' + formatPhone(third_party_number, 1) + '/time');
-		var messageRef = database.ref('/incoming/' + formatPhone(third_party_number, 1));
-
-		const snapshot = await numberRef.once('value')
-	
-		const lastTime = snapshot.val();
-		const incoming_message_test = third_party_message.trim().toLowerCase();
-		const requested_number = (incoming_message_test === 'number');
-		const time_since = thisTime - lastTime;
-
-		messageRef.push({ message: third_party_message });
-
-		if (requested_number || !lastTime || time_since > (time_threshold * 60 * 1000)) { // x minutes, 60 seconds per minute, 1000 millseconds per second
-			let reply_message = '';
-
-			if (requested_number) {
-				reply_message = formatPhone(target.newNumber);
-			} else {
-				reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (result ? '':' NOT') + ' been forwarded. Thank you. --' + target.name;
-			}
-
-			sendMessage({
-				from: target.oldNumber,
-				to: third_party_number,
-				body: reply_message
-			});
-
-			// Save in db that we sent message to this person
-			try {
-				numberRef.set(thisTime)
-				console.log('Sent message saved to database.');
-			} catch (error) {
-				console.error('Sent message was NOT saved to the database: ' + error);
-			}
-		} else {
-			console.log('Already replied to ' + third_party_number + ' within ' + time_threshold + ' minutes, not replying.');
+		// Save in db that we sent message to this person
+		try {
+			numberRef.set(thisTime)
+			console.log('Sent message saved to database.');
+		} catch (error) {
+			console.error('Sent message was NOT saved to the database: ' + error);
 		}
+	} else {
+		console.log('Already replied to ' + third_party_number + ' within ' + time_threshold + ' minutes, not replying.');
+	}
 
-		res.set('Content-Type', 'text/xml').status(200).send('<Response></Response>');
+	res.set('Content-Type', 'text/xml').status(200).send('<Response></Response>');
 
-	});
-};
-
-exports['receiveMessage'] = receiveMessage();
+});
