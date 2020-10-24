@@ -9,6 +9,8 @@ const database = admin.database();
 
 const time_threshold = 10; // Do not reply more than once within 10 minutes
 
+const targets = require('./targets.json');
+
 const formatPhone = function (rawPhoneNumber, formatCode) {
 	// formatCode: 1 = numbers only, 2 = Twilio, default = human
 
@@ -58,12 +60,20 @@ const sendMessage = async function ({ from, to, body, mediaUrls }) {
 	}
 }
 
-const receiveMessage = function (options) {
+const loadTarget = function (targetNumber) {
+	// Given the target number (the phone number receiving the message), load the data for the target person
+	return targets.find(target => target.oldNumber === targetNumber)
+}
+
+const receiveMessage = function () {
 
 	return functions.https.onRequest(async (req, res) => {
 
 		const third_party_number = req.body['From'];
 		const third_party_message = req.body['Body'];
+		const target_number = formatPhone(req.body['To'], 1);
+
+		const target = loadTarget(target_number);
 
 		console.log('Receiving message from ' + third_party_number + ': "' + third_party_message + '".');
 		const forward_message = 'Verizon Fwd from ' + formatPhone(third_party_number) + ': ' + third_party_message;
@@ -80,8 +90,8 @@ const receiveMessage = function (options) {
 		}
 
 		const result = await sendMessage({
-			from: options.old_number,
-			to: options.new_number, 
+			from: target.oldNumber,
+			to: target.newNumber, 
 			body: forward_message, 
 			mediaUrls
 		});
@@ -108,13 +118,13 @@ const receiveMessage = function (options) {
 			let reply_message = '';
 
 			if (requested_number) {
-				reply_message = formatPhone(options.new_number);
+				reply_message = formatPhone(target.newNumber);
 			} else {
-				reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (result ? '':' NOT') + ' been forwarded. Thank you. --' + options.name;
+				reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (result ? '':' NOT') + ' been forwarded. Thank you. --' + target.name;
 			}
 
 			sendMessage({
-				from: options.old_number,
+				from: target.oldNumber,
 				to: third_party_number,
 				body: reply_message
 			});
@@ -135,8 +145,4 @@ const receiveMessage = function (options) {
 	});
 };
 
-// Build out exported functions for each instance
-for (let i in functions.config().instances) {
-	let options = functions.config().instances[i];
-	exports['receiveMessage_' + i] = receiveMessage(options);
-}
+exports['receiveMessage'] = receiveMessage();
