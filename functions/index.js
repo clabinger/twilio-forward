@@ -36,22 +36,25 @@ const sendMessage = async function (from, to, body, mediaUrls) {
 
 	const client = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
 
-	let parameters = { 
+	const parameters = {
 		to: formatPhone(to, 2),
 		from: formatPhone(from, 2),
 		body: body
-	}
+	};
 
 	if (mediaUrls) {
 		parameters.mediaUrl = mediaUrls;
 	}
 
+	let message;
+
 	try {
-		await client.messages.create(parameters);
+		message = await client.messages.create(parameters);
 		console.log('Message to ' + to + ' sent successfully.');
+		return message;
 	} catch (error) {
-		console.error('Message to ' + to + ' not sent successfully: ' + error);
-		console.info(message.sid);
+		console.error('Message to ' + to + ' not sent successfully. Details: ' + error);
+		return null;
 	}
 }
 
