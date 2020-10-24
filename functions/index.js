@@ -78,7 +78,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	const target = loadTarget(source.targetNumber);
 
 	console.log('Receiving message from ' + source.number + ': "' + source.message + '".');
-	const forward_message = 'Verizon Fwd from ' + formatPhone(source.number) + ': ' + source.message;
+	const forward_message = 'Fwd from ' + formatPhone(source.number) + ': ' + source.message;
 
 	// Forward message to new number
 
