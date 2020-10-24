@@ -60,20 +60,25 @@ const sendMessage = async function ({ from, to, body, mediaUrls }) {
 	}
 }
 
+const loadSource = function (source) {
+	return {
+		number: source.From,
+		message: source.Body,
+		targetNumber: formatPhone(source.To, 1)
+	}
+}
+
 const loadTarget = function (targetNumber) {
 	// Given the target number (the phone number receiving the message), load the data for the target person
 	return targets.find(target => target.oldNumber === targetNumber)
 }
 
 exports.receiveMessage = functions.https.onRequest(async (req, res) => {
-	const third_party_number = req.body['From'];
-	const third_party_message = req.body['Body'];
-	const target_number = formatPhone(req.body['To'], 1);
+	const source = loadSource(req.body);
+	const target = loadTarget(source.targetNumber);
 
-	const target = loadTarget(target_number);
-
-	console.log('Receiving message from ' + third_party_number + ': "' + third_party_message + '".');
-	const forward_message = 'Verizon Fwd from ' + formatPhone(third_party_number) + ': ' + third_party_message;
+	console.log('Receiving message from ' + source.number + ': "' + source.message + '".');
+	const forward_message = 'Verizon Fwd from ' + formatPhone(source.number) + ': ' + source.message;
 
 	// Forward message to new number
 
@@ -99,17 +104,17 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 
 	// Only reply if they have not gotten a reply in the last x minutes
 
-	var numberRef = database.ref('/replies/' + formatPhone(third_party_number, 1) + '/time');
-	var messageRef = database.ref('/incoming/' + formatPhone(third_party_number, 1));
+	var numberRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
+	var messageRef = database.ref('/incoming/' + formatPhone(source.number, 1));
 
 	const snapshot = await numberRef.once('value')
 
 	const lastTime = snapshot.val();
-	const incoming_message_test = third_party_message.trim().toLowerCase();
+	const incoming_message_test = source.message.trim().toLowerCase();
 	const requested_number = (incoming_message_test === 'number');
 	const time_since = thisTime - lastTime;
 
-	messageRef.push({ message: third_party_message });
+	messageRef.push({ message: source.message });
 
 	if (requested_number || !lastTime || time_since > (time_threshold * 60 * 1000)) { // x minutes, 60 seconds per minute, 1000 millseconds per second
 		let reply_message = '';
@@ -122,7 +127,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 
 		sendMessage({
 			from: target.oldNumber,
-			to: third_party_number,
+			to: source.number,
 			body: reply_message
 		});
 
@@ -134,7 +139,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 			console.error('Sent message was NOT saved to the database: ' + error);
 		}
 	} else {
-		console.log('Already replied to ' + third_party_number + ' within ' + time_threshold + ' minutes, not replying.');
+		console.log('Already replied to ' + source.number + ' within ' + time_threshold + ' minutes, not replying.');
 	}
 
 	res.set('Content-Type', 'text/xml').status(200).send('<Response></Response>');
