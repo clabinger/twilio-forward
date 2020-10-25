@@ -36,7 +36,7 @@ const formatPhone = function (rawPhoneNumber, formatCode) {
 const sendMessage = async function ({ from, to, body, mediaUrls }) {
 	console.log('Sending message to ' + to + ': "' + body + '". Sending...');
 
-	const client = require('twilio')(functions.config().twilio.accountSid, functions.config().twilio.authToken); 
+	const client = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
 
 	const parameters = {
 		to: formatPhone(to, 2),
