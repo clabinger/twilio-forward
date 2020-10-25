@@ -1,16 +1,20 @@
-// The Cloud Functions for Firebase SDK to create Cloud Functions and setup triggers.
+// Firebase Cloud Functions
 const functions = require('firebase-functions');
 
-// The Firebase Admin SDK to access the Firebase Realtime Database. 
+// Firebase Admin SDK
 const admin = require('firebase-admin');
 admin.initializeApp();
 
+// Firebase Realtime Database
 const database = admin.database();
 
-const timeThreshold = 10; // Do not reply more than once within 10 minutes
+// Do not send the main reply more than once within 10 minutes
+const timeThreshold = 10;
 
+// For each forwarding number, load the old number, new number, and the name of the associated person
 const targets = require('./targets.json');
 
+// Twilio API
 const twilio = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
 
 const formatPhone = function (rawPhoneNumber, formatCode) {
@@ -36,8 +40,9 @@ const formatPhone = function (rawPhoneNumber, formatCode) {
 }
 
 const sendMessage = async function ({ from, to, body, mediaUrls }) {
-	console.log('Sending message to ' + to + ': "' + body + '". Sending...');
+	// Generic function to send a message. Used for both forwarding and replying
 
+	console.log('Sending message to ' + to + ': "' + body + '". Sending...');
 
 	const parameters = {
 		to: formatPhone(to, 2),
@@ -62,6 +67,8 @@ const sendMessage = async function ({ from, to, body, mediaUrls }) {
 }
 
 const loadSource = function (source) {
+	// Load data about the incoming message from the HTTP request into a source object.
+
 	const result = {
 		number: source.From,
 		message: source.Body,
@@ -81,10 +88,13 @@ const loadSource = function (source) {
 
 const loadTarget = function (targetNumber) {
 	// Given the target number (the phone number receiving the message), load the data for the target person
+
 	return targets.find(target => target.oldNumber === targetNumber)
 }
 
 const forwardToTarget = async function (source, target) {
+	// Forward incoming message to new phone number
+
 	return await sendMessage({
 		from: target.oldNumber,
 		to: target.newNumber, 
@@ -95,6 +105,7 @@ const forwardToTarget = async function (source, target) {
 
 const eligibleForReply = async function (ref) {
 	// Return true if sender is eligible for reply (if we have not replied within the last `timeThreshold` minutes)
+
 	const snapshot = await ref.once('value');
 	const currentTime = new Date().getTime();
 	const lastReplyTime = snapshot.val();
@@ -111,7 +122,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	// Forward message to new number
 	const forwardResult = await forwardToTarget(source, target);
 
-	const lastReplyTimeRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
+	// Store incoming message in database
 	const incomingMessageRef = database.ref('/incoming/' + formatPhone(source.number, 1));
 
 	try {
@@ -120,6 +131,9 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	} catch (error) {
 		console.error('Incoming message NOT saved to database: ' + error);
 	}
+
+	// Reply to sender
+	const lastReplyTimeRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
 
 	if (source.message.trim().toLowerCase() === 'number') {
 		console.log('Sending new phone number to sender.');
@@ -147,6 +161,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 		console.log('Already replied to ' + source.number + ' within ' + timeThreshold + ' minutes, not replying.');
 	}
 
+	// Twilio requires an TwiML response. We are using the Twilio API to send replies instead of responding in the HTTP request, for now.
 	res.set('Content-Type', 'text/xml').status(200).send('<Response></Response>');
 
 });
