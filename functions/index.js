@@ -92,6 +92,14 @@ const forwardToTarget = async function (source, target) {
 	});
 }
 
+const eligibleForReply = async function (ref) {
+	const snapshot = await ref.once('value');
+	const currentTime = new Date().getTime();
+	const lastReplyTime = snapshot.val();
+	const timeSinceLastReply = currentTime - lastReplyTime;
+	return (!lastReplyTime || timeSinceLastReply > (time_threshold * 60 * 1000)); // threshold in minutes, 60 seconds per minute, 1000 milliseconds per second
+}
+
 exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	const source = loadSource(req.body);
 	const target = loadTarget(source.targetNumber);
@@ -103,19 +111,11 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 
 	console.log('Replying to sender...');
 
-	const thisTime = new Date().getTime();
 
 	// Only reply if they have not gotten a reply in the last x minutes
 
 	const lastReplyTimeRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
 	const incomingMessageRef = database.ref('/incoming/' + formatPhone(source.number, 1));
-
-	const snapshot = await lastReplyTimeRef.once('value')
-
-	const lastTime = snapshot.val();
-	const incoming_message_test = source.message.trim().toLowerCase();
-	const requested_number = (incoming_message_test === 'number');
-	const time_since = thisTime - lastTime;
 
 	try {
 		incomingMessageRef.push({ message: source.message });
@@ -123,26 +123,23 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	} catch (error) {
 		console.error('Incoming message NOT saved to database: ' + error);
 	}
-	
 
-	if (requested_number || !lastTime || time_since > (time_threshold * 60 * 1000)) { // x minutes, 60 seconds per minute, 1000 millseconds per second
-		let reply_message = '';
-
-		if (requested_number) {
-			reply_message = formatPhone(target.newNumber);
-		} else {
-			reply_message = 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (forwardResult ? '':' NOT') + ' been forwarded. Thank you. --' + target.name;
-		}
-
+	if (source.message.trim().toLowerCase() === 'number') {
 		sendMessage({
 			from: target.oldNumber,
 			to: source.number,
-			body: reply_message
+			body: formatPhone(target.newNumber)
+		});
+	} else if (await eligibleForReply(lastReplyTimeRef)) {
+		sendMessage({
+			from: target.oldNumber,
+			to: source.number,
+			body: 'I have a new mobile phone number. Please reply NUMBER to get the new number and update your address book. Your original message has' + (forwardResult ? '':' NOT') + ' been forwarded. Thank you. --' + target.name
 		});
 
 		// Save reply time to the database for this sender
 		try {
-			lastReplyTimeRef.set(thisTime)
+			lastReplyTimeRef.set(new Date().getTime())
 			console.log('Last reply time for this sender saved to database.');
 		} catch (error) {
 			console.error('Last reply time for this sender NOT saved to database: ' + error);
