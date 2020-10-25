@@ -93,6 +93,7 @@ const forwardToTarget = async function (source, target) {
 }
 
 const eligibleForReply = async function (ref) {
+	// Return true if sender is eligible for reply (if we have not replied within the last `time_threshold` minutes)
 	const snapshot = await ref.once('value');
 	const currentTime = new Date().getTime();
 	const lastReplyTime = snapshot.val();
@@ -110,9 +111,6 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	const forwardResult = await forwardToTarget(source, target);
 
 	console.log('Replying to sender...');
-
-
-	// Only reply if they have not gotten a reply in the last x minutes
 
 	const lastReplyTimeRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
 	const incomingMessageRef = database.ref('/incoming/' + formatPhone(source.number, 1));
