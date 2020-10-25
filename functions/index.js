@@ -124,7 +124,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	const incomingMessageRef = database.ref('/incoming/' + formatPhone(target.oldNumber, 1) + '/' + formatPhone(source.number, 1));
 
 	try {
-		incomingMessageRef.push({ message: source.message });
+		incomingMessageRef.push({ message: source.message, from: source.number, to: source.targetNumber, time: (new Date().getTime()) });
 		console.log('Incoming message saved to database.');
 	} catch (error) {
 		console.error('Incoming message NOT saved to database: ' + error);
