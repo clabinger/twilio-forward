@@ -11,6 +11,8 @@ const timeThreshold = 10; // Do not reply more than once within 10 minutes
 
 const targets = require('./targets.json');
 
+const twilio = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
+
 const formatPhone = function (rawPhoneNumber, formatCode) {
 	// formatCode: 1 = numbers only, 2 = Twilio, default = human
 
@@ -36,7 +38,6 @@ const formatPhone = function (rawPhoneNumber, formatCode) {
 const sendMessage = async function ({ from, to, body, mediaUrls }) {
 	console.log('Sending message to ' + to + ': "' + body + '". Sending...');
 
-	const client = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
 
 	const parameters = {
 		to: formatPhone(to, 2),
@@ -51,7 +52,7 @@ const sendMessage = async function ({ from, to, body, mediaUrls }) {
 	let message;
 
 	try {
-		message = await client.messages.create(parameters);
+		message = await twilio.messages.create(parameters);
 		console.log('Message to ' + to + ' sent successfully.');
 		return message;
 	} catch (error) {
