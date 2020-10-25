@@ -54,10 +54,8 @@ const sendMessage = async function ({ from, to, body, mediaUrls }) {
 		parameters.mediaUrl = mediaUrls;
 	}
 
-	let message;
-
 	try {
-		message = await twilio.messages.create(parameters);
+		const message = await twilio.messages.create(parameters);
 		console.log('Message to ' + to + ' sent successfully.');
 		return message;
 	} catch (error) {
