@@ -110,8 +110,6 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	// Forward message to new number
 	const forwardResult = await forwardToTarget(source, target);
 
-	console.log('Replying to sender...');
-
 	const lastReplyTimeRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
 	const incomingMessageRef = database.ref('/incoming/' + formatPhone(source.number, 1));
 
@@ -123,12 +121,14 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	}
 
 	if (source.message.trim().toLowerCase() === 'number') {
+		console.log('Sending new phone number to sender.');
 		sendMessage({
 			from: target.oldNumber,
 			to: source.number,
 			body: formatPhone(target.newNumber)
 		});
 	} else if (await eligibleForReply(lastReplyTimeRef)) {
+		console.log('Sending main reply to sender.');
 		sendMessage({
 			from: target.oldNumber,
 			to: source.number,
