@@ -121,7 +121,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	const forwardResult = await forwardToTarget(source, target);
 
 	// Store incoming message in database
-	const incomingMessageRef = database.ref('/incoming/' + formatPhone(source.number, 1));
+	const incomingMessageRef = database.ref('/incoming/' + formatPhone(target.oldNumber, 1) + '/' + formatPhone(source.number, 1));
 
 	try {
 		incomingMessageRef.push({ message: source.message });
@@ -131,7 +131,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 	}
 
 	// Reply to sender
-	const lastReplyTimeRef = database.ref('/replies/' + formatPhone(source.number, 1) + '/time');
+	const lastReplyTimeRef = database.ref('/replies/' + formatPhone(target.oldNumber, 1) + '/' + formatPhone(source.number, 1) + '/time');
 
 	if (source.message.trim().toLowerCase() === 'number') {
 		console.log('Sending new phone number to sender.');
