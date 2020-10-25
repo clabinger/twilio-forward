@@ -7,7 +7,7 @@ admin.initializeApp();
 
 const database = admin.database();
 
-const time_threshold = 10; // Do not reply more than once within 10 minutes
+const timeThreshold = 10; // Do not reply more than once within 10 minutes
 
 const targets = require('./targets.json');
 
@@ -36,7 +36,7 @@ const formatPhone = function (rawPhoneNumber, formatCode) {
 const sendMessage = async function ({ from, to, body, mediaUrls }) {
 	console.log('Sending message to ' + to + ': "' + body + '". Sending...');
 
-	const client = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token); 
+	const client = require('twilio')(functions.config().twilio.accountSid, functions.config().twilio.authToken); 
 
 	const parameters = {
 		to: formatPhone(to, 2),
@@ -93,12 +93,12 @@ const forwardToTarget = async function (source, target) {
 }
 
 const eligibleForReply = async function (ref) {
-	// Return true if sender is eligible for reply (if we have not replied within the last `time_threshold` minutes)
+	// Return true if sender is eligible for reply (if we have not replied within the last `timeThreshold` minutes)
 	const snapshot = await ref.once('value');
 	const currentTime = new Date().getTime();
 	const lastReplyTime = snapshot.val();
 	const timeSinceLastReply = currentTime - lastReplyTime;
-	return (!lastReplyTime || timeSinceLastReply > (time_threshold * 60 * 1000)); // threshold in minutes, 60 seconds per minute, 1000 milliseconds per second
+	return (!lastReplyTime || timeSinceLastReply > (timeThreshold * 60 * 1000)); // threshold in minutes, 60 seconds per minute, 1000 milliseconds per second
 }
 
 exports.receiveMessage = functions.https.onRequest(async (req, res) => {
@@ -143,7 +143,7 @@ exports.receiveMessage = functions.https.onRequest(async (req, res) => {
 			console.error('Last reply time for this sender NOT saved to database: ' + error);
 		}
 	} else {
-		console.log('Already replied to ' + source.number + ' within ' + time_threshold + ' minutes, not replying.');
+		console.log('Already replied to ' + source.number + ' within ' + timeThreshold + ' minutes, not replying.');
 	}
 
 	res.set('Content-Type', 'text/xml').status(200).send('<Response></Response>');
