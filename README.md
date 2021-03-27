@@ -1,4 +1,4 @@
-# twilio-forward
+# sms-forward
 
 ## Purpose
 
