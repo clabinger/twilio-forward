@@ -58,7 +58,8 @@ cp functions/targets_sample.json functions/targets.json
 Store your Twilio credentials in Firebase environment variables:
 
 ```sh
-firebase functions:config:set twilio.account_sid="YOUR ACCOUNT SID" twilio.auth_token="YOUR AUTH TOKEN"
+firebase functions:secrets:set TWILIO_ACCOUNT_SID
+firebase functions:secrets:set TWILIO_AUTH_TOKEN
 ```
 
 ### Set up Postmark emails

@@ -5,7 +5,11 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 // Twilio API
-const twilio = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token);
+const twilio = require('twilio');
+
+// Twilio client is reinitialized on every function invocation
+// but is scoped here to be accessed by sendMessage()
+let twilioClient;
 
 // Firebase Realtime Database
 const database = admin.database();
@@ -56,7 +60,7 @@ const sendMessage = async ({
   }
 
   try {
-    const message = await twilio.messages.create(parameters);
+    const message = await twilioClient.messages.create(parameters);
     console.log(`Message to ${to} sent successfully.`);
     return message;
   } catch (error) {
@@ -110,7 +114,10 @@ const eligibleForReply = async (ref) => {
   return (!lastReplyTime || timeSinceLastReply > (timeThreshold * 60 * 1000));
 };
 
-exports.forwardToSms = functions.https.onRequest(async (req, res) => {
+exports.forwardToSms = functions.runWith({ secrets: ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN'] }).https.onRequest(async (req, res) => {
+  // Reinitialize on each function invocation to ensure current auth token is used
+  twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
   const source = loadSource(req.body);
   const target = loadTarget(source.targetNumber);
 
