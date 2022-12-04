@@ -112,7 +112,7 @@ const eligibleForReply = async (ref) => {
   return (!lastReplyTime || timeSinceLastReply > (timeThreshold * 60 * 1000));
 };
 
-exports.receiveMessage = functions.https.onRequest(async (req, res) => {
+exports.forwardToSms = functions.https.onRequest(async (req, res) => {
   const source = loadSource(req.body);
   const target = loadTarget(source.targetNumber);
 
