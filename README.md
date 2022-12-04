@@ -28,16 +28,22 @@
 
 Set your Firebase project ID in `.firebaserc`. You can copy and then edit the sample file:
 
-	cp sample.firebaserc .firebaserc
+```sh
+cp sample.firebaserc .firebaserc
+```
 
 ### Specify targets
 
 Multiple targets are supported. Each target forwards from one phone number to another. Specify targets in `targets.json`. You can copy and then edit the sample file:
 
-	cp functions/targets_sample.json functions/targets.json
+```sh
+cp functions/targets_sample.json functions/targets.json
+```
 
 ### Set up Twilio authentication
 
 Store your Twilio credentials in Firebase environment variables:
 
-	firebase functions:config:set twilio.account_sid="YOUR ACCOUNT SID" twilio.auth_token="YOUR AUTH TOKEN"
+```sh
+firebase functions:config:set twilio.account_sid="YOUR ACCOUNT SID" twilio.auth_token="YOUR AUTH TOKEN"
+```
