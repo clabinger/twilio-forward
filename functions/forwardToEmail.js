@@ -10,7 +10,8 @@ const database = admin.database();
 // Postmark to send emails
 const postmark = require('postmark');
 
-// Postmark client is reinitialized on every function invocation but is scoped here to be accessed by sendEmail()
+// Postmark client is reinitialized on every function invocation
+// but is scoped here to be accessed by sendEmail()
 let postmarkClient;
 
 // Got HTTP request library to download media attachments from Twilio URLs
