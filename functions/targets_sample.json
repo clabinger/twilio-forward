@@ -1,12 +1,24 @@
 [
-	{
-	  "name":"John Smith",
-	  "oldNumber":"3235556789",
-	  "newNumber":"2125550123"
-	},
-	{
-		"name":"Jane Doe",
+  {
+    // Properties used for forwardToSms (remove this comment)
+    "name":"John Smith",
+    "oldNumber":"3235556789",
+    "newNumber":"2125550123",
+    
+    // Properties used for forwardToEmail (remove this comment)
+    "fromEmail":"Text Message Forward <sms-forward@example.com>",
+    "number":"3235556789",
+    "email":"John Smith <johnsmith@example.com>"
+  },
+  {
+    // Properties used for forwardToSms (remove this comment)
+    "name":"Jane Doe",
 	  "oldNumber":"3125554567",
-	  "newNumber":"2135554321"
-	}
-  ]
+	  "newNumber":"2135554321",
+
+    // Properties used for forwardToEmail (remove this comment)
+    "fromEmail":"Text Message Forward <sms-forward@example.com>",
+    "number":"3125554567",
+    "email":"Jane Doe <janedoe@example.com>"
+  }
+]

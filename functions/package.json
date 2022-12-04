@@ -4,6 +4,9 @@
   "dependencies": {
     "firebase-admin": "^11.3.0",
     "firebase-functions": "^4.1.0",
+    "got": "11.8.5",
+    "mime-types": "^2.1.35",
+    "postmark": "^3.0.14",
     "twilio": "^3.83.4"
   },
   "private": true,
