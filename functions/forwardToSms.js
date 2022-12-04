@@ -4,8 +4,6 @@ const functions = require('firebase-functions');
 // Firebase Admin SDK
 const admin = require('firebase-admin');
 
-admin.initializeApp();
-
 // Twilio API
 const twilio = require('twilio')(functions.config().twilio.account_sid, functions.config().twilio.auth_token);
 
